@@ -1,0 +1,5 @@
+flask
+flask-login
+psycopg2-binary
+reportlab
+gunicorn
