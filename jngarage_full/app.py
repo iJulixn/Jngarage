@@ -118,6 +118,7 @@ def pagar(id=None):
 
     link = crear_pago(data[4], data[5])
     return redirect(link)
+@app.route("/", methods=["GET", "POST"])
 @login_required
 def index():
     conn = get_db()
