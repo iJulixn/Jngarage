@@ -98,10 +98,13 @@ def crear_pago(descripcion, precio):
     preference = sdk.preference().create(preference_data)
     return preference["response"]["init_point"]
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/pagar/")
 @app.route("/pagar/<int:id>")
 @login_required
-def pagar(id):
+def pagar(id=None):
+    if not id:
+        return redirect("/")  # evita el crash
+
     conn = get_db()
     cursor = conn.cursor()
 
@@ -109,6 +112,9 @@ def pagar(id):
     data = cursor.fetchone()
 
     conn.close()
+
+    if not data:
+        return "Servicio no encontrado"
 
     link = crear_pago(data[4], data[5])
     return redirect(link)
