@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{background:#0f172a;color:white;font-family:Arial}
+.header{text-align:center;padding:20px;color:#38bdf8;font-size:22px}
+.card{background:#1e293b;padding:15px;margin:10px;border-radius:12px}
+button{width:100%;padding:14px;background:#38bdf8;border:none;border-radius:10px}
+input,select{width:100%;padding:10px;margin:5px;background:#1e293b;color:white;border:none;border-radius:10px}
+.stats{display:flex;justify-content:space-around;margin:10px}
+</style>
+</head>
+<body>
+
+<div class="header">
+<img src="/static/logo.png" style="height:60px"><br>
+JN Garage Detail
+</div>
+
+<form method="POST">
+<input name="cliente" placeholder="Cliente">
+<input name="auto" placeholder="Auto">
+<select name="tipo"><option>Lavado</option><option>Pulido</option></select>
+<input name="precio" placeholder="Precio">
+<button>Guardar</button>
+</form>
+
+<div class="stats">
+<div>Total ${{total}}</div>
+<div>Pagado ${{pagados}}</div>
+<div>Pendiente ${{pendientes}}</div>
+</div>
+
+{% for d in datos %}
+<div class="card">
+<b>{{d[2]}}</b> - {{d[3]}}<br>
+{{d[4]}} - ${{d[5]}}<br>
+
+{% if d[6] == "pagado" %}
+<span style="color:lime">✔ Pagado</span>
+{% else %}
+<span style="color:red">⏳ Pendiente</span>
+{% endif %}
+
+<br>
+<a href="/ticket/{{d[0]}}">📄 Ticket</a>
+<a href="/qr/{{d[0]}}">💳 QR</a>
+</div>
+{% endfor %}
+
+</body>
+</html>
