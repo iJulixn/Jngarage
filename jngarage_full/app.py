@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, send_file
 from datetime import datetime
 import psycopg2
 import os
+import mercadopago
 from reportlab.pdfgen import canvas
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user
 
