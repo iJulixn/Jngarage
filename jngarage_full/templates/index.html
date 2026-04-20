@@ -2,50 +2,93 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <style>
-body { background:#0f172a; color:white; font-family:Arial; margin:0; }
-.header { background:#020617; padding:15px; text-align:center; color:#38bdf8; }
-.container { padding:15px; }
+body {
+    background: #0f172a;
+    color: white;
+    font-family: Arial;
+    margin: 0;
+}
+
+.header {
+    text-align: center;
+    padding: 15px;
+    background: #020617;
+    color: #38bdf8;
+    font-size: 22px;
+    font-weight: bold;
+}
+
+.container {
+    padding: 15px;
+}
 
 input, select {
-    width:100%;
-    padding:12px;
-    margin:5px 0;
-    border:none;
-    border-radius:10px;
-    background:#1e293b;
-    color:white;
+    width: 100%;
+    padding: 12px;
+    margin: 6px 0;
+    border: none;
+    border-radius: 10px;
+    background: #1e293b;
+    color: white;
 }
 
 button {
-    width:100%;
-    padding:12px;
-    margin-top:10px;
-    border:none;
-    border-radius:10px;
-    background:#38bdf8;
-    font-weight:bold;
+    width: 100%;
+    padding: 14px;
+    margin-top: 10px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #38bdf8, #0ea5e9);
+    color: black;
+    font-weight: bold;
+    font-size: 16px;
 }
 
 .card {
-    background:#1e293b;
-    padding:10px;
-    margin-top:10px;
-    border-radius:10px;
+    background: #1e293b;
+    padding: 15px;
+    margin-top: 12px;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.4);
+}
+
+.card b {
+    font-size: 16px;
+}
+
+.actions {
+    margin-top: 10px;
+}
+
+.actions a {
+    text-decoration: none;
+    margin-right: 10px;
+    font-size: 14px;
+}
+
+.pay {
+    color: #22c55e;
+}
+
+.ticket {
+    color: #38bdf8;
 }
 
 .stats {
-    display:flex;
-    justify-content:space-between;
-    margin-top:10px;
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
 }
 
 .stat {
-    background:#1e293b;
-    padding:10px;
-    border-radius:10px;
-    width:48%;
-    text-align:center;
+    flex: 1;
+    background: #1e293b;
+    padding: 12px;
+    border-radius: 10px;
+    text-align: center;
+    font-weight: bold;
 }
 </style>
 </head>
@@ -59,35 +102,38 @@ button {
 <form method="POST">
 <input name="cliente" placeholder="Cliente">
 <input name="auto" placeholder="Auto">
+
 <select name="tipo">
 <option>Lavado básico</option>
 <option>Lavado premium</option>
 <option>Pulido</option>
 </select>
+
 <input name="precio" placeholder="Precio">
-<button>Guardar</button>
+<button>Guardar servicio</button>
 </form>
 
 <div class="stats">
-<div class="stat">Hoy 💰 ${{total_dia}}</div>
-<div class="stat">Mes 📊 ${{total_mes}}</div>
+<div class="stat">💰 Hoy: ${{total_dia}}</div>
+<div class="stat">📊 Mes: ${{total_mes}}</div>
 </div>
 
 {% for d in datos %}
 <div class="card">
 <b>{{d[2]}}</b> - {{d[3]}}<br>
 {{d[4]}}<br>
-💲{{d[5]}}<br>
-<a href="/ticket/{{d[0]}}" style="color:#38bdf8">📄 Ticket PDF</a>
+💲{{d[5]}}
+
+<div class="actions">
+<a href="/ticket/{{d[0]}}" class="ticket">📄 Ticket</a>
+<a href="/pagar/{{d[0]}}" class="pay">💳 Pagar</a>
 </div>
 
-<br>
-<a href="/pagar/{{d[0]}}" style="color:lime">
-💳 Pagar
-</a>
+</div>
 {% endfor %}
 
-<a href="/logout">Cerrar sesión</a>
+<br>
+<a href="/logout" style="color: red;">Cerrar sesión</a>
 
 </div>
 
