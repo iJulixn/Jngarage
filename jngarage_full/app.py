@@ -7,6 +7,7 @@ from reportlab.pdfgen import canvas
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user
 
 app = Flask(__name__)
+sdk = mercadopago.SDK(os.environ.get("MP_ACCESS_TOKEN"))
 app.secret_key = "jngarage_secret"
 
 login_manager = LoginManager()
@@ -83,7 +84,34 @@ def generar_pdf(data):
     c.save()
     return nombre
 
+def crear_pago(descripcion, precio):
+    preference_data = {
+        "items": [
+            {
+                "title": descripcion,
+                "quantity": 1,
+                "unit_price": float(precio)
+            }
+        ]
+    }
+
+    preference = sdk.preference().create(preference_data)
+    return preference["response"]["init_point"]
+
 @app.route("/", methods=["GET", "POST"])
+@app.route("/pagar/<int:id>")
+@login_required
+def pagar(id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM servicios WHERE id=%s", (id,))
+    data = cursor.fetchone()
+
+    conn.close()
+
+    link = crear_pago(data[4], data[5])
+    return redirect(link)
 @login_required
 def index():
     conn = get_db()
