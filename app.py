@@ -1,18 +1,18 @@
-from flask import Flask, render_template, request, redirect, send_file, jsonify
+from flask import Flask, render_template, request, redirect, send_file
 from datetime import datetime
-import psycopg2, os, mercadopago, uuid
+import psycopg2
+import os
 from reportlab.pdfgen import canvas
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user
 
 app = Flask(__name__)
 app.secret_key = "jngarage_secret"
 
-sdk = mercadopago.SDK(os.environ.get("MP_ACCESS_TOKEN"))
-
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
 
+# LOGIN SIMPLE
 class User(UserMixin):
     def __init__(self, id):
         self.id = id
@@ -27,130 +27,83 @@ def load_user(user_id):
 def get_db():
     return psycopg2.connect(os.environ.get("DATABASE_URL"))
 
-def crear_tablas():
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("CREATE TABLE IF NOT EXISTS servicios (id SERIAL PRIMARY KEY, fecha TEXT, cliente TEXT, auto TEXT, tipo TEXT, precio FLOAT, estado TEXT DEFAULT 'pendiente', mp_id TEXT)")
-    cur.execute("CREATE TABLE IF NOT EXISTS clientes (id SERIAL PRIMARY KEY, nombre TEXT UNIQUE)")
-    conn.commit()
-    conn.close()
-
-crear_tablas()
-
-def generar_pdf(d):
-    name = f"ticket_{uuid.uuid4()}.pdf"
-    c = canvas.Canvas(name)
-    c.drawString(100,800,"JN Garage Detail")
-    c.drawString(100,750,f"{d[2]} - {d[3]}")
-    c.drawString(100,700,f"{d[4]} $ {d[5]}")
-    c.drawString(100,650,f"Estado: {d[6]}")
-    c.save()
-    return name
-
-def crear_pago(desc, precio, servicio_id):
-    pref = sdk.preference().create({
-        "items":[{"title":desc,"quantity":1,"unit_price":float(precio)}],
-        "metadata":{"servicio_id":servicio_id}
-    })
-    return pref["response"]["init_point"], pref["response"]["id"]
-
-@app.route("/login", methods=["GET","POST"])
-def login():
-    if request.method == "POST":
-        if request.form["user"] == USUARIO and request.form["password"] == PASSWORD:
-            login_user(User(1))
-            return redirect("/")
-    return render_template("login.html")
-
-@app.route("/logout")
-@login_required
-def logout():
-    logout_user()
-    return redirect("/login")
-
-@app.route("/", methods=["GET","POST"])
+# HOME
+@app.route("/", methods=["GET", "POST"])
 @login_required
 def index():
     conn = get_db()
     cur = conn.cursor()
 
     if request.method == "POST":
-        cliente = request.form["cliente"]
-        cur.execute("INSERT INTO clientes (nombre) VALUES (%s) ON CONFLICT DO NOTHING",(cliente,))
-        cur.execute("INSERT INTO servicios (fecha,cliente,auto,tipo,precio) VALUES (%s,%s,%s,%s,%s)",
-                    (datetime.now().strftime("%Y-%m-%d %H:%M"),
-                     cliente,
-                     request.form["auto"],
-                     request.form["tipo"],
-                     float(request.form["precio"])))
+        cliente = request.form.get("cliente")
+        auto = request.form.get("auto")
+        servicio = request.form.get("servicio")
+        precio = request.form.get("precio")
+
+        # guardar cliente si no existe
+        if cliente:
+            cur.execute("""
+                INSERT INTO clientes (nombre)
+                VALUES (%s)
+                ON CONFLICT (nombre) DO NOTHING
+            """, (cliente,))
+
+        cur.execute("""
+            INSERT INTO servicios (cliente, auto, servicio, precio, estado, fecha)
+            VALUES (%s,%s,%s,%s,'pendiente',NOW())
+        """, (cliente, auto, servicio, precio))
+
         conn.commit()
 
+    # traer servicios
     cur.execute("SELECT * FROM servicios ORDER BY id DESC")
     data = cur.fetchall()
+
+    # traer clientes
+    cur.execute("SELECT nombre FROM clientes ORDER BY nombre")
+    clientes = cur.fetchall()
+
     conn.close()
 
-    total = sum(s[5] for s in data)
-    pagados = sum(s[5] for s in data if s[6]=="pagado")
-    pendientes = sum(s[5] for s in data if s[6]=="pendiente")
+    total = sum(s[4] for s in data) if data else 0
+    pagados = sum(s[4] for s in data if s[5] == "pagado") if data else 0
+    pendientes = total - pagados
 
-    return render_template("index.html",datos=data,total=total,pagados=pagados,pendientes=pendientes)
+    return render_template("index.html",
+                           datos=data,
+                           total=total,
+                           pagados=pagados,
+                           pendientes=pendientes,
+                           clientes=clientes)
 
-@app.route("/qr/<int:id>")
+# BORRAR CLIENTE
+@app.route("/borrar_cliente/<nombre>")
 @login_required
-def qr(id):
+def borrar_cliente(nombre):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM servicios WHERE id=%s",(id,))
-    d = cur.fetchone()
-
-    link, mp_id = crear_pago(d[4],d[5],id)
-    cur.execute("UPDATE servicios SET mp_id=%s WHERE id=%s",(mp_id,id))
+    cur.execute("DELETE FROM clientes WHERE nombre=%s", (nombre,))
     conn.commit()
     conn.close()
+    return redirect("/")
 
-    return render_template("qr.html",link=link)
+# LOGIN
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        user = request.form["username"]
+        pw = request.form["password"]
 
-@app.route("/ticket/<int:id>")
-@login_required
-def ticket(id):
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM servicios WHERE id=%s",(id,))
-    d = cur.fetchone()
-    conn.close()
-    return send_file(generar_pdf(d),as_attachment=True)
+        if user == USUARIO and pw == PASSWORD:
+            login_user(User(1))
+            return redirect("/")
+    return render_template("login.html")
 
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    data = request.json
-    if data and data.get("type")=="payment":
-        payment_id = data["data"]["id"]
-        pago = sdk.payment().get(payment_id)
-        info = pago["response"]
-        if info["status"]=="approved":
-            servicio_id = info["metadata"]["servicio_id"]
-            conn = get_db()
-            cur = conn.cursor()
-            cur.execute("UPDATE servicios SET estado='pagado' WHERE id=%s",(servicio_id,))
-            conn.commit()
-            conn.close()
-    return jsonify({"status":"ok"})
-@app.route("/fixdb")
-def fixdb():
-    conn = get_db()
-    cur = conn.cursor()
+# LOGOUT
+@app.route("/logout")
+def logout():
+    logout_user()
+    return redirect("/login")
 
-    try:
-        cur.execute("ALTER TABLE servicios ADD COLUMN estado TEXT DEFAULT 'pendiente'")
-    except:
-        pass
-
-    try:
-        cur.execute("ALTER TABLE servicios ADD COLUMN mp_id TEXT")
-    except:
-        pass
-
-    conn.commit()
-    conn.close()
-
-    return "Base de datos arreglada ✅"
+if __name__ == "__main__":
+    app.run()
