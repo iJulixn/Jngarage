@@ -135,3 +135,22 @@ def webhook():
             conn.commit()
             conn.close()
     return jsonify({"status":"ok"})
+@app.route("/fixdb")
+def fixdb():
+    conn = get_db()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("ALTER TABLE servicios ADD COLUMN estado TEXT DEFAULT 'pendiente'")
+    except:
+        pass
+
+    try:
+        cur.execute("ALTER TABLE servicios ADD COLUMN mp_id TEXT")
+    except:
+        pass
+
+    conn.commit()
+    conn.close()
+
+    return "Base de datos arreglada ✅"
